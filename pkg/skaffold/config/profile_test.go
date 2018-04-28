@@ -179,6 +179,118 @@ func TestApplyProfiles(t *testing.T) {
 				},
 			},
 		},
+		{
+			description: "dev-only-profiles",
+			profile:     "dev",
+			config: SkaffoldConfig{
+				Profiles: []v1alpha2.Profile{
+					{
+						Name: "run",
+						Build: v1alpha2.BuildConfig{
+							TagPolicy: v1alpha2.TagPolicy{
+								EnvTemplateTagger: &v1alpha2.EnvTemplateTagger{
+									Template: "{{.MYREGISTRY}}/myorg/myapp:{{.VERSION}}",
+								},
+							},
+							Artifacts: []*v1alpha2.Artifact{
+								{
+									ImageName: "changeme",
+									Workspace: ".",
+									ArtifactType: v1alpha2.ArtifactType{
+										DockerArtifact: &v1alpha2.DockerArtifact{
+											DockerfilePath: "Dockerfile",
+										},
+									},
+								},
+							},
+							BuildType: v1alpha2.BuildType{
+								LocalBuild: &v1alpha2.LocalBuild{},
+							},
+						},
+						Deploy: v1alpha2.DeployConfig{
+							DeployType: v1alpha2.DeployType{
+								KubectlDeploy: &v1alpha2.KubectlDeploy{},
+							},
+						},
+					},
+					{
+						Name: "dev",
+						Build: v1alpha2.BuildConfig{
+							TagPolicy: v1alpha2.TagPolicy{
+								EnvTemplateTagger: &v1alpha2.EnvTemplateTagger{
+									Template: "{{.MYREGISTRY}}/myorg/myapp:{{.DIGEST}}",
+								},
+							},
+							Artifacts: []*v1alpha2.Artifact{
+								{
+									ImageName: "changeme",
+									Workspace: ".",
+									ArtifactType: v1alpha2.ArtifactType{
+										DockerArtifact: &v1alpha2.DockerArtifact{
+											DockerfilePath: "Dockerfile",
+										},
+									},
+								},
+							},
+							BuildType: v1alpha2.BuildType{
+								LocalBuild: &v1alpha2.LocalBuild{},
+							},
+						},
+						Deploy: v1alpha2.DeployConfig{
+							DeployType: v1alpha2.DeployType{
+								HelmDeploy: &v1alpha2.HelmDeploy{
+									Releases: []v1alpha2.HelmRelease{
+										{
+											Name:              "myapp",
+											Namespace:         "foo",
+											SetValues:         map[string]string{},
+											SetValueTemplates: map[string]string{},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedConfig: SkaffoldConfig{
+				Build: v1alpha2.BuildConfig{
+					TagPolicy: v1alpha2.TagPolicy{
+						EnvTemplateTagger: &v1alpha2.EnvTemplateTagger{
+							Template: "{{.MYREGISTRY}}/myorg/myapp:{{.DIGEST}}",
+						},
+					},
+					Artifacts: []*v1alpha2.Artifact{
+						{
+							ImageName: "changeme",
+							Workspace: ".",
+							ArtifactType: v1alpha2.ArtifactType{
+								DockerArtifact: &v1alpha2.DockerArtifact{
+									DockerfilePath: "Dockerfile",
+								},
+							},
+						},
+					},
+					BuildType: v1alpha2.BuildType{
+						LocalBuild: &v1alpha2.LocalBuild{},
+					},
+				},
+				Deploy: v1alpha2.DeployConfig{
+					DeployType: v1alpha2.DeployType{
+						HelmDeploy: &v1alpha2.HelmDeploy{
+							Releases: []v1alpha2.HelmRelease{
+								{
+									Name:              "myapp",
+									Namespace:         "foo",
+									SetValues:         map[string]string{},
+									SetValueTemplates: map[string]string{},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

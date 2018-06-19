@@ -197,10 +197,11 @@ func (h *HelmDeployer) deployRelease(out io.Writer, r v1alpha2.HelmRelease, buil
 			if idx > 0 {
 				suffix = strconv.Itoa(idx + 1)
 			}
-			m := tag.CreateEnvVarMap(b.ImageName, b.Tag)
+			m := tag.CreateEnvVarMap(b.ImageName, extractTag(b.Tag))
 			for k, v := range m {
 				envMap[k+suffix] = v
 			}
+			fmt.Printf("EnvVarMap: %#v\n", envMap)
 		}
 		for k, v := range r.SetValueTemplates {
 			t, err := util.ParseEnvTemplate(v)
@@ -229,6 +230,20 @@ func (h *HelmDeployer) deployRelease(out io.Writer, r v1alpha2.HelmRelease, buil
 		os.Remove("skaffold-overrides.yaml")
 	}
 	return h.getDeployResults(ns, r.Name), helmErr
+}
+
+// imageName if the given string includes a fully qualified docker image name then lets trim just the tag part out
+func extractTag(imageName string) string {
+	idx := strings.LastIndex(imageName, "/")
+	if idx < 0 {
+		return imageName
+	}
+	tag := imageName[idx+1:]
+	idx = strings.Index(tag, ":")
+	if idx > 0 {
+		return tag[idx+1:]
+	}
+	return tag
 }
 
 // packageChart packages the chart and returns path to the chart archive file.

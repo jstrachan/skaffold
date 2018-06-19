@@ -31,12 +31,14 @@ import (
 	// "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/build"
+	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/build/tag"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/constants"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/schema/v1alpha2"
 	"github.com/GoogleContainerTools/skaffold/pkg/skaffold/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
+	"strconv"
 )
 
 type HelmDeployer struct {
@@ -184,11 +186,38 @@ func (h *HelmDeployer) deployRelease(out io.Writer, r v1alpha2.HelmRelease, buil
 		args = append(args, "-f", r.ValuesFilePath)
 	}
 
-	if len(r.SetValues) != 0 {
-		for k, v := range r.SetValues {
-			setOpts = append(setOpts, "--set")
-			setOpts = append(setOpts, fmt.Sprintf("%s=%s", k, v))
+	setValues := r.SetValues
+	if setValues == nil {
+		setValues = map[string]string{}
+	}
+	if len(r.SetValueTemplates) != 0 {
+		envMap := map[string]string{}
+		for idx, b := range builds {
+			suffix := ""
+			if idx > 0 {
+				suffix = strconv.Itoa(idx + 1)
+			}
+			m := tag.CreateEnvVarMap(b.ImageName, b.Tag)
+			for k, v := range m {
+				envMap[k+suffix] = v
+			}
 		}
+		for k, v := range r.SetValueTemplates {
+			t, err := util.ParseEnvTemplate(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to parse setValueTemplates")
+			}
+			result, err := util.ExecuteEnvTemplate(t, envMap)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to generate setValueTemplates")
+			} else {
+				setValues[k] = result
+			}
+		}
+	}
+	for k, v := range setValues {
+		setOpts = append(setOpts, "--set")
+		setOpts = append(setOpts, fmt.Sprintf("%s=%s", k, v))
 	}
 	if r.Wait {
 		args = append(args, "--wait")
@@ -199,7 +228,6 @@ func (h *HelmDeployer) deployRelease(out io.Writer, r v1alpha2.HelmRelease, buil
 	if len(r.Overrides) != 0 {
 		os.Remove("skaffold-overrides.yaml")
 	}
-
 	return h.getDeployResults(ns, r.Name), helmErr
 }
 

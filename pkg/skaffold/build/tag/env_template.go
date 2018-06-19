@@ -49,10 +49,15 @@ func (t *envTemplateTagger) Labels() map[string]string {
 
 // GenerateFullyQualifiedImageName tags an image with the custom tag
 func (t *envTemplateTagger) GenerateFullyQualifiedImageName(workingDir string, opts *Options) (string, error) {
-	customMap := map[string]string{}
+	customMap := CreateEnvVarMap(opts.ImageName, opts.Digest)
+	return util.ExecuteEnvTemplate(t.Template, customMap)
+}
 
-	customMap["IMAGE_NAME"] = opts.ImageName
-	digest := opts.Digest
+// CreateEnvVarMap creates a set of environment variables for use in Templates from the given
+// image name and digest
+func CreateEnvVarMap(imageName string, digest string) map[string]string {
+	customMap := map[string]string{}
+	customMap["IMAGE_NAME"] = imageName
 	customMap["DIGEST"] = digest
 	if digest != "" {
 		names := strings.SplitN(digest, ":", 2)
@@ -61,6 +66,5 @@ func (t *envTemplateTagger) GenerateFullyQualifiedImageName(workingDir string, o
 			customMap["DIGEST_HEX"] = names[1]
 		}
 	}
-
-	return util.ExecuteEnvTemplate(t.Template, customMap)
+	return customMap
 }

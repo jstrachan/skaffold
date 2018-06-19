@@ -64,6 +64,8 @@ func CreateEnvVarMap(imageName string, digest string) map[string]string {
 		if len(names) >= 2 {
 			customMap["DIGEST_ALGO"] = names[0]
 			customMap["DIGEST_HEX"] = names[1]
+		} else {
+			customMap["DIGEST_HEX"] = digest
 		}
 	}
 	return customMap
